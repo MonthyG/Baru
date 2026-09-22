@@ -11,6 +11,7 @@ import {
   CalendarDays,
 } from "lucide-react";
 import { useStore } from "../store";
+import { NutritionSummary } from "./Nutrition";
 import {
   addDays,
   dayKey,
@@ -266,6 +267,12 @@ export function Dashboard({
           <span className="stat-note">Every session adds up.</span>
         </div>
       </div>
+      <SectionTitle
+        title="Today's fuel"
+        action="Food log"
+        onClick={() => navigate("Nutrition")}
+      />
+      <NutritionSummary />
       <div className="dashboard-bottom">
         <section className="card">
           <SectionTitle

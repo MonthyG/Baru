@@ -43,6 +43,8 @@ export const profileSchema = z.object({
   theme: z.enum(["light", "dark", "system"]),
   rest: z.number().int().min(0).max(600),
   onboarded: z.boolean(),
+  age: z.number().int().min(13).max(120).nullable().default(null),
+  height: z.number().finite().min(100).max(250).nullable().default(null),
 });
 const routineItemSchema = z.object({
   id,
@@ -88,14 +90,49 @@ export const measurementSchema = z.object({
   id,
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   weight: z.number().finite().min(20).max(500),
+  height: z.number().finite().min(100).max(250).nullable().default(null),
   waist: z.number().finite().min(0).max(300),
   chest: z.number().finite().min(0).max(300),
   hips: z.number().finite().min(0).max(300),
   arm: z.number().finite().min(0).max(150),
 });
+export const calendarDate = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/)
+  .refine(
+    (s) =>
+      !isNaN(Date.parse(s)) && new Date(s).toISOString().slice(0, 10) === s,
+    "Enter a valid date",
+  );
+export const foodSchema = z.object({
+  id,
+  name,
+  date: calendarDate,
+  meal: z.enum(["Breakfast", "Lunch", "Dinner", "Snack"]),
+  servings: z.number().finite().positive().max(100),
+  calories: z.number().finite().min(0).max(10000),
+  protein: z.number().finite().min(0).max(1000),
+});
+export const goalsSchema = z.object({
+  calories: z.number().int().min(100).max(10000).nullable().default(null),
+  protein: z.number().finite().min(1).max(1000).nullable().default(null),
+  weight: z.number().finite().min(20).max(500).nullable().default(null),
+  date: calendarDate.nullable().default(null),
+});
+export const reminderSchema = z.object({
+  id,
+  title: name,
+  kind: z.enum(["Workout", "Food", "Weigh-in"]),
+  time: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
+  days: z.array(z.number().int().min(0).max(6)).min(1).max(7),
+  enabled: z.boolean(),
+  dismissed: calendarDate.nullable().default(null),
+  notified: calendarDate.nullable().default(null),
+});
 export const dataSchema = z
   .object({
     version: z.literal(1),
+    customerLog: z.literal(true).default(true),
     profile: profileSchema,
     exercises: z.array(exerciseSchema).min(1).max(2000),
     favorites: z.array(id).max(2000),
@@ -103,14 +140,27 @@ export const dataSchema = z
     workouts: z.array(workoutSchema).max(10000),
     measurements: z.array(measurementSchema).max(10000),
     active: workoutSchema.nullable(),
+    foods: z.array(foodSchema).max(30000).default([]),
+    goals: goalsSchema.default({
+      calories: null,
+      protein: null,
+      weight: null,
+      date: null,
+    }),
+    reminders: z.array(reminderSchema).max(50).default([]),
   })
   .superRefine((data, ctx) => {
     const ids = new Set(data.exercises.map((e) => e.id));
     const unique = (values: string[]) => values.length === new Set(values).size;
     if (
-      ![data.exercises, data.routines, data.workouts, data.measurements].every(
-        (a) => unique(a.map((x) => x.id)),
-      )
+      ![
+        data.exercises,
+        data.routines,
+        data.workouts,
+        data.measurements,
+        data.foods,
+        data.reminders,
+      ].every((a) => unique(a.map((x) => x.id)))
     )
       ctx.addIssue({ code: "custom", message: "Duplicate record IDs" });
     if (
@@ -174,6 +224,9 @@ export type WorkoutItem = z.infer<typeof workoutItemSchema>;
 export type WorkoutSet = z.infer<typeof setSchema>;
 export type Measurement = z.infer<typeof measurementSchema>;
 export type Data = z.infer<typeof dataSchema>;
+export type Food = z.infer<typeof foodSchema>;
+export type GoalsData = z.infer<typeof goalsSchema>;
+export type Reminder = z.infer<typeof reminderSchema>;
 export type Page =
   | "Dashboard"
   | "Routines"
@@ -182,4 +235,6 @@ export type Page =
   | "Progress"
   | "Measurements"
   | "Settings"
-  | "Workout";
+  | "Workout"
+  | "Nutrition"
+  | "Goals";

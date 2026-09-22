@@ -1,35 +1,46 @@
 import { useState } from "react";
-import {
-  ArrowRight,
-  ArrowLeft,
-  Check,
-  Dumbbell,
-  Target,
-  CalendarDays,
-  Layers,
-} from "lucide-react";
+import { ArrowRight, ArrowLeft, Dumbbell, Check } from "lucide-react";
 import { useStore } from "../store";
-import { equipment, type Profile } from "../model";
-import { personalizedRoutine } from "../domain";
+import { equipment, profileSchema, goalsSchema, type Profile } from "../model";
+import { dayKey, personalizedRoutine, uid } from "../domain";
 import { Field, Modal } from "./ui";
+import { BodyFields } from "./BodyFields";
+import { BmiCard } from "./BmiCard";
+import { GoalFields } from "../pages/Goals";
 export function Onboarding({ onClose }: { onClose: () => void }) {
   const { data, setData, notice } = useStore();
   const [step, setStep] = useState(0);
   const [profile, setProfile] = useState<Profile>({
     ...data.profile,
-    name: data.profile.onboarded ? data.profile.name : "",
+    name: data.profile.name === "You" ? "" : data.profile.name,
   });
-  const [keepDemo, setKeepDemo] = useState(true);
-  const valid =
-    step === 0
-      ? profile.name.trim().length > 0
-      : step === 2
-        ? profile.equipment.length > 0
-        : true;
+  const [weight, setWeight] = useState<number | null>(
+    [...data.measurements].sort((a, b) => b.date.localeCompare(a.date))[0]
+      ?.weight ?? null,
+  );
+  const [goals, setGoals] = useState(data.goals);
+  const [error, setError] = useState("");
   const plan = personalizedRoutine(
     { ...profile, name: profile.name || "Your" },
     data.exercises,
   );
+  const valid =
+    step === 0
+      ? profile.name.trim().length > 0
+      : step === 1
+        ? profile.age !== null &&
+          profile.height !== null &&
+          weight !== null &&
+          weight >= 20 &&
+          weight <= 500 &&
+          profileSchema.safeParse({ ...profile, name: profile.name || "You" })
+            .success
+        : step === 3
+          ? profile.equipment.length > 0
+          : step === 4
+            ? goalsSchema.safeParse(goals).success &&
+              (!goals.date || goals.weight !== null)
+            : true;
   const skip = () => {
     setData((d) => ({ ...d, profile: { ...d.profile, onboarded: true } }));
     onClose();
@@ -49,12 +60,12 @@ export function Onboarding({ onClose }: { onClose: () => void }) {
             <h2>
               Built for
               <br />
-              the long game.
+              your beginning.
             </h2>
             <p>
-              One session at a time.
+              A clean log. Your own goals.
               <br />
-              Let's find your starting point.
+              One day at a time.
             </p>
           </div>
           <span className="onboarding-foot">
@@ -63,18 +74,19 @@ export function Onboarding({ onClose }: { onClose: () => void }) {
         </div>
         <div className="onboarding-content">
           <div className="onboard-progress">
-            {[0, 1, 2, 3].map((i) => (
+            {[0, 1, 2, 3, 4].map((i) => (
               <span key={i} className={i <= step ? "filled" : ""} />
             ))}
           </div>
-          <div className="eyebrow">STEP {step + 1} OF 4</div>
+          <div className="eyebrow">STEP {step + 1} OF 5</div>
           <h2>
             {
               [
                 "First, a little about you.",
+                "Your starting point.",
                 "What are you training for?",
-                "What do you have to work with?",
-                "Your starting line.",
+                "Your training setup.",
+                "Set your direction.",
               ][step]
             }
           </h2>
@@ -85,26 +97,26 @@ export function Onboarding({ onClose }: { onClose: () => void }) {
                   autoFocus
                   required
                   maxLength={100}
-                  placeholder="Your first name"
+                  placeholder="Your name"
                   value={profile.name}
                   onChange={(e) =>
                     setProfile({ ...profile, name: e.target.value })
                   }
                 />
               </Field>
-              <Field label="Preferred weight units">
+              <Field label="Preferred units">
                 <div className="segmented">
                   <button
                     className={profile.units === "kg" ? "active" : ""}
                     onClick={() => setProfile({ ...profile, units: "kg" })}
                   >
-                    Kilograms
+                    Kilograms / cm
                   </button>
                   <button
                     className={profile.units === "lb" ? "active" : ""}
                     onClick={() => setProfile({ ...profile, units: "lb" })}
                   >
-                    Pounds
+                    Pounds / inches
                   </button>
                 </div>
               </Field>
@@ -127,32 +139,41 @@ export function Onboarding({ onClose }: { onClose: () => void }) {
           )}
           {step === 1 && (
             <div className="stack">
-              <div className="goal-choices">
-                {(["Strength", "Muscle", "General fitness"] as const).map(
-                  (g, i) => (
-                    <button
-                      key={g}
-                      className={profile.goal === g ? "chosen" : ""}
-                      onClick={() => setProfile({ ...profile, goal: g })}
-                    >
-                      <Target size={19} />
-                      <span>
-                        <strong>{g}</strong>
-                        <small>
-                          {
-                            [
-                              "Move heavier weights with confidence.",
-                              "Build muscle with consistent volume.",
-                              "Feel stronger in everyday life.",
-                            ][i]
-                          }
-                        </small>
-                      </span>
-                      {profile.goal === g && <Check size={17} />}
-                    </button>
-                  ),
-                )}
-              </div>
+              <p className="help muted">
+                Just age, height, and bodyweight. Your weight becomes your first
+                check-in, dated today.
+              </p>
+              <BodyFields
+                profile={profile}
+                onChange={setProfile}
+                weight={weight}
+                onWeight={setWeight}
+                required
+              />
+              <BmiCard
+                weight={weight}
+                height={profile.height}
+                age={profile.age}
+              />
+            </div>
+          )}
+          {step === 2 && (
+            <div className="stack">
+              <Field label="Primary training goal">
+                <select
+                  value={profile.goal}
+                  onChange={(e) =>
+                    setProfile({
+                      ...profile,
+                      goal: e.target.value as Profile["goal"],
+                    })
+                  }
+                >
+                  <option>Strength</option>
+                  <option>Muscle</option>
+                  <option>General fitness</option>
+                </select>
+              </Field>
               <Field label="Training days per week">
                 <select
                   value={profile.days}
@@ -167,46 +188,52 @@ export function Onboarding({ onClose }: { onClose: () => void }) {
                   ))}
                 </select>
               </Field>
+              <p className="help muted">
+                We’ll use your experience, goal, schedule, and equipment to
+                build your first routine.
+              </p>
             </div>
           )}
-          {step === 2 && (
-            <>
-              <p className="help muted">
-                Select everything you can use. We'll match your routine to your
-                equipment.
-              </p>
-              <div className="equipment-choices">
-                {equipment.map((e) => (
-                  <button
-                    key={e}
-                    className={profile.equipment.includes(e) ? "chosen" : ""}
-                    onClick={() =>
-                      setProfile({
-                        ...profile,
-                        equipment: profile.equipment.includes(e)
-                          ? profile.equipment.filter((x) => x !== e)
-                          : [...profile.equipment, e],
-                      })
-                    }
-                  >
-                    <span>{e}</span>
-                    {profile.equipment.includes(e) && <Check size={17} />}
-                  </button>
-                ))}
-              </div>
-            </>
-          )}
           {step === 3 && (
-            <>
+            <div className="equipment-choices">
+              {equipment.map((e) => (
+                <button
+                  key={e}
+                  aria-pressed={profile.equipment.includes(e)}
+                  className={profile.equipment.includes(e) ? "chosen" : ""}
+                  onClick={() =>
+                    setProfile({
+                      ...profile,
+                      equipment: profile.equipment.includes(e)
+                        ? profile.equipment.filter((x) => x !== e)
+                        : [...profile.equipment, e],
+                    })
+                  }
+                >
+                  {e}
+                  {profile.equipment.includes(e) && <Check size={17} />}
+                </button>
+              ))}
+            </div>
+          )}
+          {step === 4 && (
+            <div className="stack">
+              <p className="help muted">
+                Optional targets for your food log and bodyweight. You can set
+                or change these later in Goals & reminders.
+              </p>
+              <GoalFields
+                goals={goals}
+                onChange={setGoals}
+                units={profile.units}
+              />
               <div className="starting-plan">
                 <h3>{plan.name}</h3>
                 <p>
-                  <CalendarDays size={15} />
-                  {profile.days} days / week <Layers size={15} />
-                  {plan.items.length} exercises
+                  {profile.days} days / week · {plan.items.length} exercises
                 </p>
                 {plan.items.map((i) => (
-                  <div key={i.exerciseId}>
+                  <div key={i.id}>
                     <span>
                       {data.exercises.find((e) => e.id === i.exerciseId)?.name}
                     </span>
@@ -216,22 +243,9 @@ export function Onboarding({ onClose }: { onClose: () => void }) {
                   </div>
                 ))}
               </div>
-              {!data.profile.onboarded && (
-                <label className="check-label">
-                  <input
-                    type="checkbox"
-                    checked={keepDemo}
-                    onChange={(e) => setKeepDemo(e.target.checked)}
-                  />
-                  Keep demo history to explore the app
-                </label>
-              )}
-              <p className="help muted">
-                You can adapt this routine anytime. Rest days are built into
-                your weekly schedule.
-              </p>
-            </>
+            </div>
           )}
+          {error && <p className="error">{error}</p>}
           <div className="onboarding-actions">
             {step > 0 ? (
               <button
@@ -250,27 +264,54 @@ export function Onboarding({ onClose }: { onClose: () => void }) {
               className="button lime"
               disabled={!valid}
               onClick={() => {
-                if (step < 3) {
+                if (step < 4) {
                   setStep(step + 1);
+                  return;
+                }
+                const parsed = profileSchema.safeParse({
+                  ...profile,
+                  onboarded: true,
+                });
+                const parsedGoals = goalsSchema.safeParse(goals);
+                if (
+                  !parsed.success ||
+                  !parsedGoals.success ||
+                  !plan.items.length
+                ) {
+                  setError(
+                    "Check your profile, goals, and available equipment.",
+                  );
                   return;
                 }
                 setData((d) => ({
                   ...d,
-                  profile: {
-                    ...profile,
-                    name: profile.name.trim(),
-                    onboarded: true,
-                  },
+                  profile: parsed.data,
+                  goals: parsedGoals.data,
                   routines: [plan, ...d.routines],
-                  ...(!d.profile.onboarded && !keepDemo
-                    ? { workouts: [], measurements: [] }
-                    : {}),
+                  measurements:
+                    weight !== null
+                      ? [
+                          ...d.measurements.filter((m) => m.date !== dayKey()),
+                          {
+                            id:
+                              d.measurements.find((m) => m.date === dayKey())
+                                ?.id || uid(),
+                            date: dayKey(),
+                            weight,
+                            height: profile.height,
+                            waist: 0,
+                            chest: 0,
+                            hips: 0,
+                            arm: 0,
+                          },
+                        ]
+                      : d.measurements,
                 }));
-                notice("Your personalized routine is ready");
+                notice("Your starting point and routine are ready");
                 onClose();
               }}
             >
-              {step === 3 ? "Let’s get stronger" : "Continue"}
+              {step === 4 ? "Start my journey" : "Continue"}
               <ArrowRight size={17} />
             </button>
           </div>

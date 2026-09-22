@@ -731,6 +731,7 @@ export function seed(): Data {
     id: uid(),
     date: dayKey(addDays(new Date(), -(13 - i) * 7)),
     weight: 79.2 - i * 0.12,
+    height: null,
     waist: 84 - i * 0.1,
     chest: 101 + i * 0.1,
     hips: 98,
@@ -738,6 +739,7 @@ export function seed(): Data {
   }));
   return {
     version: 1,
+    customerLog: true,
     profile: {
       name: "Alex",
       units: "kg",
@@ -748,6 +750,8 @@ export function seed(): Data {
       theme: "light",
       rest: 90,
       onboarded: false,
+      age: null,
+      height: null,
     },
     exercises: catalog,
     favorites: ["barbell-bench-press", "barbell-back-squat", "deadlift"],
@@ -755,5 +759,8 @@ export function seed(): Data {
     workouts,
     measurements,
     active: null,
+    foods: [],
+    goals: { calories: null, protein: null, weight: null, date: null },
+    reminders: [],
   };
 }

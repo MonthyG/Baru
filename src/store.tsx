@@ -1,26 +1,31 @@
 import { useState, useEffect, type ReactNode } from "react";
 import { dataSchema, type Data } from "./model";
-import { seed } from "./seed";
+import { freshData } from "./fresh";
 import { Context } from "./context";
 export { useStore } from "./context";
-export const STORAGE_KEY = "ironlog.v1";
+export const STORAGE_KEY = "ironlog.customer.v2";
 let loadError = "";
 function read(): Data {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return dataSchema.parse(JSON.parse(raw));
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return parsed.customerLog === true
+        ? dataSchema.parse(parsed)
+        : freshData();
+    }
   } catch {
     loadError =
-      "Saved data could not be read. A demo is open; export or reset to recover. Your original storage has been preserved.";
+      "Saved data could not be read. An empty log is open; export or reset to recover. Your original storage has been preserved.";
   }
-  return seed();
+  return freshData();
 }
 export function Store({ children }: { children: ReactNode }) {
   const [data, setData] = useState<Data>(read);
   const [message, setMessage] = useState("");
   const [storageError, setStorageError] = useState(loadError);
   useEffect(() => {
-    if (loadError) return;
+    if (loadError || !data.customerLog) return;
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
       setStorageError("");

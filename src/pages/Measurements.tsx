@@ -3,6 +3,8 @@ import { Plus, Pencil, Trash2 } from "lucide-react";
 import { useStore } from "../store";
 import { dayKey, displayWeight, fmt, toKg, uid, addDays } from "../domain";
 import { measurementSchema, type Measurement } from "../model";
+import { bmi } from "../wellness";
+import { BmiCard } from "../components/BmiCard";
 import {
   Chart,
   Confirm,
@@ -12,7 +14,7 @@ import {
   PageHeader,
   SectionTitle,
 } from "../components/ui";
-function MeasurementForm({
+function WeightForm({
   measurement,
   onClose,
 }: {
@@ -20,49 +22,41 @@ function MeasurementForm({
   onClose: () => void;
 }) {
   const { data, setData, notice } = useStore();
-  const units = data.profile.units;
   const [date, setDate] = useState(measurement?.date || dayKey());
   const [weight, setWeight] = useState(
-    measurement ? String(displayWeight(measurement.weight, units)) : "",
-  );
-  const [fields, setFields] = useState(
-    Object.fromEntries(
-      (["waist", "chest", "hips", "arm"] as const).map((k) => [
-        k,
-        measurement?.[k]
-          ? String(
-              Math.round((measurement[k] / (units === "lb" ? 2.54 : 1)) * 10) /
-                10,
-            )
-          : "",
-      ]),
-    ),
+    measurement
+      ? String(displayWeight(measurement.weight, data.profile.units))
+      : "",
   );
   const [error, setError] = useState("");
   return (
     <Modal
-      title={measurement ? "Edit measurement" : "Check in with yourself"}
+      title={measurement ? "Edit bodyweight" : "Log your bodyweight"}
       onClose={onClose}
     >
       <form
         className="stack"
         onSubmit={(e) => {
           e.preventDefault();
-          const draft = {
+          const result = measurementSchema.safeParse({
+            ...measurement,
             id: measurement?.id || uid(),
             date,
-            weight: toKg(Number(weight), units),
-            ...Object.fromEntries(
-              Object.entries(fields).map(([k, v]) => [
-                k,
-                Number(v) * (units === "lb" ? 2.54 : 1),
-              ]),
-            ),
-          };
-          const parsed = measurementSchema.safeParse(draft);
-          if (!parsed.success || date > dayKey() || isNaN(Date.parse(date))) {
+            weight: toKg(Number(weight), data.profile.units),
+            height: measurement?.height ?? data.profile.height,
+            waist: measurement?.waist || 0,
+            chest: measurement?.chest || 0,
+            hips: measurement?.hips || 0,
+            arm: measurement?.arm || 0,
+          });
+          if (
+            !result.success ||
+            date > dayKey() ||
+            !date ||
+            new Date(date).toISOString().slice(0, 10) !== date
+          ) {
             setError(
-              "Enter a valid date and bodyweight (20–500 kg equivalent). Measurements must be nonnegative.",
+              "Enter a valid past date and a bodyweight between 20 and 500 kg equivalent.",
             );
             return;
           }
@@ -72,7 +66,7 @@ function MeasurementForm({
             )
           ) {
             setError(
-              "A check-in already exists on this date. Edit that entry or choose a different date.",
+              "A weight is already logged for this date. Edit that entry instead.",
             );
             return;
           }
@@ -80,61 +74,46 @@ function MeasurementForm({
             ...d,
             measurements: measurement
               ? d.measurements.map((m) =>
-                  m.id === measurement.id ? parsed.data : m,
+                  m.id === measurement.id ? result.data : m,
                 )
-              : [...d.measurements, parsed.data],
+              : [...d.measurements, result.data],
           }));
-          notice("Check-in saved");
+          notice("Bodyweight saved");
           onClose();
         }}
       >
-        <div className="form-grid">
-          <Field label="Date">
-            <input
-              type="date"
-              required
-              max={dayKey()}
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-            />
-          </Field>
-          <Field label={`Bodyweight (${units})`}>
-            <input
-              type="number"
-              inputMode="decimal"
-              required
-              min={displayWeight(20, units)}
-              max={displayWeight(500, units)}
-              step="0.1"
-              value={weight}
-              onChange={(e) => setWeight(e.target.value)}
-            />
-          </Field>
-        </div>
+        <Field label="Date">
+          <input
+            required
+            type="date"
+            max={dayKey()}
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            onBlur={(e) => setDate(e.target.value)}
+          />
+        </Field>
+        <Field label={`Bodyweight (${data.profile.units})`}>
+          <input
+            autoFocus
+            required
+            type="number"
+            inputMode="decimal"
+            min={displayWeight(20, data.profile.units)}
+            max={displayWeight(500, data.profile.units)}
+            step="0.1"
+            value={weight}
+            onChange={(e) => setWeight(e.target.value)}
+          />
+        </Field>
         <p className="help muted">
-          Optional measurements · {units === "lb" ? "inches" : "centimetres"}
+          BMI uses the height saved with this check-in. Update your current
+          height and age in Settings before logging a new entry.
         </p>
-        <div className="form-grid">
-          {Object.entries(fields).map(([key, value]) => (
-            <Field
-              label={`${key[0].toUpperCase() + key.slice(1)} (${units === "lb" ? "in" : "cm"})`}
-              key={key}
-            >
-              <input
-                type="number"
-                inputMode="decimal"
-                min={0}
-                max={units === "lb" ? 118 : 300}
-                step="0.1"
-                value={value}
-                onChange={(e) =>
-                  setFields({ ...fields, [key]: e.target.value })
-                }
-              />
-            </Field>
-          ))}
-        </div>
-        {error && <p className="error">{error}</p>}
+        {error && (
+          <p className="error" role="alert">
+            {error}
+          </p>
+        )}
         <button className="button lime" type="submit">
           Save check-in
         </button>
@@ -144,35 +123,44 @@ function MeasurementForm({
 }
 export function Measurements() {
   const { data, setData, notice } = useStore();
-  const [edit, setEdit] = useState<Measurement | null | undefined>(undefined);
+  const [edit, setEdit] = useState<Measurement | null | undefined>();
   const [remove, setRemove] = useState<Measurement | null>(null);
   const sorted = [...data.measurements].sort((a, b) =>
     a.date.localeCompare(b.date),
   );
   const latest = sorted.at(-1);
   const change = (days: number) => {
-    if (!latest) return null;
-    const target = dayKey(addDays(new Date(), -days));
-    const prior = [...sorted].reverse().find((m) => m.date <= target);
-    return prior && prior.id !== latest.id
+    const prior = [...sorted]
+      .reverse()
+      .find((m) => m.date <= dayKey(addDays(new Date(), -days)));
+    return latest && prior && latest.id !== prior.id
       ? displayWeight(latest.weight - prior.weight, data.profile.units)
       : null;
   };
+  const bmiPoints = sorted
+    .filter((m) => m.height !== null)
+    .map((m) => ({
+      label: new Date(`${m.date}T12:00:00`).toLocaleDateString("en", {
+        month: "short",
+        day: "numeric",
+      }),
+      value: bmi(m.weight, m.height)!,
+    }));
   return (
     <>
       <PageHeader
-        eyebrow="BEYOND THE BARBELL"
-        title="Body measurements"
-        description="Another perspective on your progress."
+        eyebrow="YOUR STARTING POINT, YOUR PROGRESS"
+        title="Bodyweight & BMI"
+        description="A simple check-in. A clearer picture over time."
         action={
           <button className="button" onClick={() => setEdit(null)}>
             <Plus size={17} />
-            Log check-in
+            Log bodyweight
           </button>
         }
       />
       <div className="stat-grid">
-        <div className="card stat">
+        <section className="card stat">
           <span className="stat-label">Latest bodyweight</span>
           <strong>
             {latest
@@ -181,33 +169,49 @@ export function Measurements() {
             <small> {data.profile.units}</small>
           </strong>
           <span className="stat-note">
-            {latest
-              ? new Date(`${latest.date}T12:00:00`).toLocaleDateString("en", {
-                  month: "long",
-                  day: "numeric",
-                })
-              : "Log your first check-in"}
+            {latest?.date || "No weigh-ins yet"}
           </span>
-        </div>
-        {[30, 90].map((days) => {
-          const n = change(days);
-          return (
-            <div className="card stat" key={days}>
-              <span className="stat-label">{days}-day change</span>
-              <strong>
-                {n === null ? "—" : `${n > 0 ? "+" : ""}${fmt(n)}`}
-                <small> {data.profile.units}</small>
-              </strong>
-              <span className="stat-note">
-                {n === null
-                  ? "Not enough history yet"
-                  : `From the latest entry on or before ${days} days ago`}
-              </span>
-            </div>
-          );
-        })}
+        </section>
+        {[30, 90].map((days) => (
+          <section className="card stat" key={days}>
+            <span className="stat-label">{days}-day change</span>
+            <strong>
+              {change(days) === null
+                ? "—"
+                : `${change(days)! > 0 ? "+" : ""}${fmt(change(days)!)}`}
+              <small> {data.profile.units}</small>
+            </strong>
+            <span className="stat-note">
+              {change(days) === null
+                ? "Not enough history yet"
+                : `Compared with a check-in ${days}+ days ago`}
+            </span>
+          </section>
+        ))}
       </div>
-      <section className="card">
+      <div className="analytics-grid">
+        <BmiCard
+          weight={latest?.weight}
+          height={latest?.height ?? data.profile.height}
+          age={data.profile.age}
+        />
+        <section className="card">
+          <SectionTitle title="BMI over time" />
+          {bmiPoints.length ? (
+            <Chart data={bmiPoints} label="BMI" />
+          ) : (
+            <Empty
+              title="Your BMI story starts here"
+              text="Add your height in Settings and log bodyweight to track BMI over time."
+            />
+          )}
+          <p className="help muted">
+            Historical points keep the height entered at that time. BMI is one
+            view of progress; your training and how you feel also matter.
+          </p>
+        </section>
+      </div>
+      <section className="card mt">
         <SectionTitle title="Bodyweight over time" />
         {sorted.length ? (
           <Chart
@@ -224,7 +228,7 @@ export function Measurements() {
         ) : (
           <Empty
             title="Start with where you are"
-            text="Your check-ins will build a picture of change over time."
+            text="Your first weigh-in becomes your own starting point."
           />
         )}
       </section>
@@ -237,46 +241,34 @@ export function Measurements() {
               <tr>
                 <th>Date</th>
                 <th>Bodyweight ({data.profile.units})</th>
-                {["Waist", "Chest", "Hips", "Arm"].map((k) => (
-                  <th key={k}>
-                    {k} ({data.profile.units === "lb" ? "in" : "cm"})
-                  </th>
-                ))}
+                <th>BMI</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {[...sorted].reverse().map((m) => (
                 <tr key={m.id}>
-                  <td>
-                    {new Date(`${m.date}T12:00:00`).toLocaleDateString("en", {
-                      month: "short",
-                      day: "numeric",
-                      year: "numeric",
-                    })}
-                  </td>
+                  <td>{m.date}</td>
                   <td>{fmt(displayWeight(m.weight, data.profile.units))}</td>
-                  {(["waist", "chest", "hips", "arm"] as const).map((k) => (
-                    <td key={k}>
-                      {m[k]
-                        ? fmt(m[k] / (data.profile.units === "lb" ? 2.54 : 1))
-                        : "—"}
-                    </td>
-                  ))}
+                  <td>
+                    {bmi(m.weight, m.height) === null
+                      ? "—"
+                      : fmt(bmi(m.weight, m.height)!)}
+                  </td>
                   <td>
                     <button
-                      aria-label={`Edit measurement ${m.date}`}
                       className="icon-button"
+                      aria-label={`Edit weight ${m.date}`}
                       onClick={() => setEdit(m)}
                     >
-                      <Pencil size={15} />
+                      <Pencil size={16} />
                     </button>
                     <button
-                      aria-label={`Delete measurement ${m.date}`}
                       className="icon-button"
+                      aria-label={`Delete weight ${m.date}`}
                       onClick={() => setRemove(m)}
                     >
-                      <Trash2 size={15} />
+                      <Trash2 size={16} />
                     </button>
                   </td>
                 </tr>
@@ -286,30 +278,27 @@ export function Measurements() {
         </div>
         {!sorted.length && (
           <Empty
-            title="No check-ins yet"
-            text="Add your first entry whenever you're ready."
+            title="No weigh-ins yet"
+            text="Only your own entries will appear here."
           />
         )}
       </div>
       {edit !== undefined && (
-        <MeasurementForm
-          measurement={edit}
-          onClose={() => setEdit(undefined)}
-        />
-      )}
+        <WeightForm measurement={edit} onClose={() => setEdit(undefined)} />
+      )}{" "}
       {remove && (
         <Confirm
-          title="Delete this check-in?"
+          title="Delete this weigh-in?"
           onClose={() => setRemove(null)}
           onConfirm={() => {
             setData((d) => ({
               ...d,
               measurements: d.measurements.filter((m) => m.id !== remove.id),
             }));
-            notice("Check-in deleted");
+            notice("Weigh-in deleted");
           }}
         >
-          The entry for {remove.date} will be permanently removed.
+          This removes your bodyweight and BMI entry for {remove.date}.
         </Confirm>
       )}
     </>

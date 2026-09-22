@@ -16,7 +16,8 @@ import {
   type Data,
   type Profile,
 } from "../model";
-import { seed } from "../seed";
+import { freshData } from "../fresh";
+import { BodyFields } from "../components/BodyFields";
 import { Confirm, Field, PageHeader, SectionTitle } from "../components/ui";
 export function ProfileFields({
   profile,
@@ -112,6 +113,8 @@ export function Settings({ onOnboard }: { onOnboard: () => void }) {
     setProfile((p) => ({
       ...p,
       name: data.profile.name,
+      age: data.profile.age,
+      height: data.profile.height,
       experience: data.profile.experience,
       days: data.profile.days,
       goal: data.profile.goal,
@@ -119,6 +122,8 @@ export function Settings({ onOnboard }: { onOnboard: () => void }) {
     }));
   }, [
     data.profile.name,
+    data.profile.age,
+    data.profile.height,
     data.profile.experience,
     data.profile.days,
     data.profile.goal,
@@ -150,7 +155,7 @@ export function Settings({ onOnboard }: { onOnboard: () => void }) {
               const parsed = profileSchema.safeParse(profile);
               if (!parsed.success) {
                 setError(
-                  "Add your name and select at least one equipment type.",
+                  "Check your name, equipment, age (13–120), and height (100–250 cm equivalent).",
                 );
                 return;
               }
@@ -160,6 +165,7 @@ export function Settings({ onOnboard }: { onOnboard: () => void }) {
             }}
           >
             <ProfileFields profile={profile} onChange={setProfile} />
+            <BodyFields profile={profile} onChange={setProfile} />
             {error && (
               <p role="alert" className="error">
                 {error}
@@ -294,7 +300,7 @@ export function Settings({ onOnboard }: { onOnboard: () => void }) {
             onClick={() => setConfirm("reset")}
           >
             <RotateCcw size={17} />
-            Reset demo data
+            Reset all data
           </button>
           <input
             ref={input}
@@ -327,18 +333,19 @@ export function Settings({ onOnboard }: { onOnboard: () => void }) {
         <div className="storage-summary">
           {data.workouts.length} workouts · {data.routines.length} routines ·{" "}
           {data.exercises.filter((e) => e.custom).length} custom exercises ·{" "}
-          {data.measurements.length} check-ins
+          {data.measurements.length} weigh-ins · {data.foods.length} food
+          entries · {data.reminders.length} reminders
           {data.active ? " · 1 active workout" : ""}
         </div>
       </section>
       <p className="app-version">
-        IRONLOG / VERSION 1.0 <span>Built for the long game.</span>
+        IRONLOG / VERSION 2.0 <span>Built for the long game.</span>
       </p>
       {confirm && (
         <Confirm
           title={
             confirm === "reset"
-              ? "Reset all data to the demo?"
+              ? "Start again with an empty log?"
               : "Replace your data with this backup?"
           }
           label={confirm === "reset" ? "Reset data" : "Import backup"}
@@ -349,12 +356,12 @@ export function Settings({ onOnboard }: { onOnboard: () => void }) {
           onConfirm={() => {
             allowStorageRecovery();
             if (confirm === "reset") {
-              const next = seed();
-              next.profile.onboarded = true;
+              const next = freshData();
+              next.profile.onboarded = false;
               next.profile.theme = data.profile.theme;
               setData(next);
               setProfile(next.profile);
-              notice("Demo data restored");
+              notice("Your log is empty. Start with your own profile.");
             } else if (imported) {
               setData(imported);
               setProfile(imported.profile);
@@ -363,7 +370,7 @@ export function Settings({ onOnboard }: { onOnboard: () => void }) {
           }}
         >
           {confirm === "reset"
-            ? "This replaces all workouts, routines, measurements, preferences, and any active session. Export a backup first if you want to keep them."
+            ? "This replaces all workouts, routines, bodyweight, food, goals, reminders, preferences, and any active session. Export a backup first if you want to keep them."
             : `This validated backup contains ${imported?.workouts.length} workouts, ${imported?.routines.length} routines, and ${imported?.measurements.length} check-ins. It will replace all current data, including the active session.`}
         </Confirm>
       )}

@@ -10,6 +10,8 @@ import {
   ArrowUpRight,
   ChevronRight,
   Play,
+  Utensils,
+  Target,
 } from "lucide-react";
 import { useStore } from "./store";
 import { Dashboard } from "./pages/Dashboard";
@@ -20,6 +22,9 @@ import { Progress } from "./pages/Progress";
 import { Measurements } from "./pages/Measurements";
 import { Settings } from "./pages/Settings";
 import { LiveWorkout, WorkoutSummary } from "./pages/Workout";
+import { Nutrition } from "./pages/Nutrition";
+import { Goals } from "./pages/Goals";
+import { Reminders } from "./components/Reminders";
 import { Onboarding } from "./components/Onboarding";
 import { startWorkout } from "./domain";
 import type { Page, Routine, Workout } from "./model";
@@ -30,6 +35,8 @@ const pages: Page[] = [
   "History",
   "Progress",
   "Measurements",
+  "Nutrition",
+  "Goals",
   "Settings",
   "Workout",
 ];
@@ -119,6 +126,8 @@ export default function App() {
     ["History", HistoryIcon],
     ["Progress", ChartNoAxesCombined],
     ["Measurements", Ruler],
+    ["Nutrition", Utensils],
+    ["Goals", Target],
   ] as const;
   return (
     <div className={`app-shell ${page === "Workout" ? "is-workout" : ""}`}>
@@ -202,6 +211,7 @@ export default function App() {
           </div>
         </div>
         <div className="page-content">
+          <Reminders navigate={navigate} />
           {storageError && (
             <div className="error storage-error" role="alert">
               {storageError}
@@ -231,7 +241,11 @@ export default function App() {
           {page === "Exercises" && <Exercises openWorkout={setDetail} />}{" "}
           {page === "History" && <History openWorkout={setDetail} />}{" "}
           {page === "Progress" && <Progress />}{" "}
-          {page === "Measurements" && <Measurements />}{" "}
+          {page === "Measurements" && <Measurements />}
+          {page === "Nutrition" && (
+            <Nutrition openGoals={() => navigate("Goals")} />
+          )}
+          {page === "Goals" && <Goals />}{" "}
           {page === "Settings" && (
             <Settings onOnboard={() => setOnboard(true)} />
           )}{" "}

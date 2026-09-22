@@ -3190,3 +3190,239 @@ input[type="checkbox"] {
     font-size: 13px;
   }
 }
+.nutrition-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 22px;
+  margin: 0 0 24px;
+}
+.goal-track {
+  height: 7px;
+  border-radius: 5px;
+  background: var(--soft);
+  overflow: hidden;
+  margin: 14px 0 12px;
+}
+.goal-track > span {
+  height: 100%;
+  display: block;
+  background: #95b45a;
+  border-radius: 5px;
+  transition: width 0.25s;
+}
+.meal-groups {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+.food-row {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  border-top: 1px solid var(--line);
+  padding: 17px 0;
+}
+.food-row strong {
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+.food-row p {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+.food-row > div:first-child {
+  min-width: 0;
+}
+.food-row .inline-actions {
+  flex-shrink: 0;
+}
+.bmi-reading {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin: 18px 0;
+}
+.bmi-reading > strong {
+  font-size: 38px;
+  letter-spacing: -1px;
+  font-weight: 600;
+}
+.bmi-reading > span {
+  font-size: 14px;
+  color: var(--muted);
+}
+.bmi-card a {
+  color: var(--green);
+  text-decoration: underline;
+}
+.bmi-scale {
+  display: flex;
+  height: 9px;
+  position: relative;
+  gap: 2px;
+  border-radius: 6px;
+  margin: 26px 0 8px;
+}
+.bmi-scale > span:nth-child(1) {
+  width: 14%;
+  background: #8da9bf;
+}
+.bmi-scale > span:nth-child(2) {
+  width: 26%;
+  background: #a7c477;
+}
+.bmi-scale > span:nth-child(3) {
+  width: 20%;
+  background: #d7be7f;
+}
+.bmi-scale > span:nth-child(4) {
+  width: 40%;
+  background: #bf9790;
+}
+.bmi-scale > i {
+  position: absolute;
+  height: 20px;
+  width: 3px;
+  top: -5px;
+  background: var(--text);
+  border-radius: 2px;
+}
+.bmi-labels {
+  position: relative;
+  height: 20px;
+  font-size: 11px;
+  color: var(--muted);
+  margin-bottom: 18px;
+}
+.bmi-labels > span {
+  position: absolute;
+  transform: translateX(-50%);
+}
+.bmi-labels > span:nth-child(1) {
+  left: 14%;
+}
+.bmi-labels > span:nth-child(2) {
+  left: 40%;
+}
+.bmi-labels > span:nth-child(3) {
+  left: 60%;
+}
+.onboarding-content .bmi-card {
+  padding: 15px;
+}
+.onboarding-content .bmi-reading > strong {
+  font-size: 28px;
+}
+.onboarding-content .bmi-card .help {
+  font-size: 11px;
+}
+.reminder-intro {
+  display: grid;
+  gap: 16px;
+}
+.reminder-intro > .button {
+  width: fit-content;
+}
+.reminder-banners {
+  display: grid;
+  gap: 10px;
+}
+.reminder-banner {
+  border: 1px solid #acc18a;
+  background: var(--surface);
+  border-radius: 9px;
+  padding: 12px 16px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 14px;
+}
+.reminder-banner > svg {
+  color: var(--green);
+}
+.reminder-banner > span {
+  flex: 1;
+}
+.reminder-banner strong {
+  font-size: 13px;
+  display: block;
+}
+.reminder-banner small {
+  font-size: 11px;
+  color: var(--muted);
+  display: block;
+}
+.sidebar {
+  overflow-y: auto;
+}
+.sidebar-bottom {
+  padding-top: 25px;
+}
+.nutrition-summary .stat > strong {
+  font-size: 27px;
+}
+.food-row .choice {
+  white-space: nowrap;
+}
+@media (max-width: 640px) {
+  .sidebar nav {
+    overflow-x: auto;
+    justify-content: flex-start;
+    scrollbar-width: none;
+  }
+  .sidebar nav button {
+    flex: 0 0 70px;
+    min-width: 70px;
+    font-size: 10px;
+  }
+  .sidebar {
+    overflow-y: hidden;
+  }
+  .nutrition-summary {
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .nutrition-summary .stat {
+    padding: 15px;
+  }
+  .nutrition-summary .stat > strong {
+    font-size: 23px;
+  }
+  .nutrition-summary .stat > strong > small {
+    display: block;
+    font-size: 11px;
+    margin-top: 5px;
+  }
+  .meal-groups {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+  .food-row {
+    gap: 7px;
+    flex-wrap: wrap;
+  }
+  .food-row > .inline-actions {
+    margin-left: auto;
+  }
+  .bmi-reading > strong {
+    font-size: 34px;
+  }
+  .reminder-banner {
+    padding: 10px;
+    gap: 7px;
+  }
+  .reminder-banner .icon-button {
+    min-width: 32px;
+  }
+  .onboarding-content .form-grid {
+    gap: 12px;
+  }
+  .history-toolbar .month-switch {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
+.nutrition-summary > .stat {
+  display: block;
+}
